@@ -10,8 +10,6 @@ mutable struct SubLocations <: AbstractLocation
 
 end
 
-approx_offset = (0, 0)
-
 mutable struct Location <: AbstractLocation
     name::String
     position::Tuple{Int64, Int64}
@@ -69,12 +67,12 @@ routes
 stylesheet = begin
     hover_circs = Style("circle.hovercirc", "transition" => 800ms)
     hover_slide = keyframes("hoverslide")
-    keyframes!(hover_slide, 0percent, "left" => 100percent)
-    keyframes!(hover_slide, 100percent, "left" => 78percent)
+    keyframes!(hover_slide, 0percent, "left" => -22percent)
+    keyframes!(hover_slide, 100percent, "left" => 0percent)
     hover_label = Style("div.hoverlabel", "padding" => 1percent, "background-color" => "#333d33", "color" => "white", 
-    "font-weight" => "bold", "font-size" => 15pt, "position" => "fixed", "border-radius" => 4px, "border" => "1px solid #1e1e1e", 
-    "transition" => 850ms, "width" => 20percent, "height" => 30percent, "animation-name" => "hoverslide", "animation-duration" => 800ms,
-    "height" => 100percent, "left" => 78percent, "top" => 0percent, "opacity" => 90percent)
+        "font-weight" => "bold", "font-size" => 15pt, "position" => "fixed", "border-radius" => 4px, "border" => "1px solid #1e1e1e", 
+        "transition" => 850ms, "width" => 20percent, "height" => 30percent, "animation-name" => "hoverslide", "animation-duration" => 800ms,
+        "height" => 100percent, "left" => 0percent, "top" => 0percent, "opacity" => 90percent, "z-index" => 15, "overflow" => "hidden")
     grow_forever = keyframes("growforever")
     keyframes!(grow_forever, 0percent, "transform" => scale(1))
     keyframes!(grow_forever, 100percent, "transform" => scale(1.5))
@@ -199,18 +197,20 @@ main = route("/") do c::Toolips.AbstractConnection
     style!(main_svg, "overflow" => "scroll")
     for location in locations
         safename = replace(location.name, " " => "")
-        circ = Component{:circle}("$safename", class = "hovercirc", r = 10, cx = location.position[1] + approx_offset[1], cy = location.position[2] + approx_offset[2])
+        circ = Component{:circle}("$safename", class = "hovercirc", r = 10, cx = location.position[1], cy = location.position[2])
         on(c, circ, "mouseenter") do cm::ComponentModifier
             cm[circ] = "r" => 30
             style!(cm, circ, "fill" => "green")
             if ~("$safename-label"  in cm)
                 new_label = div("$safename-label", class = "hoverlabel", close = "1")
-                push!(new_label, h2(text = location.name))
+                push!(new_label, h2(text = location.name, align = "center"))
                 if location.cover
                     cover_path = replace(get_filepath(location) * "/images/cover.jpg", " " => "-")
-                    cover = img("activecover", src = cover_path, width = 400, align = "center")
-                    style!(cover, "width" => 100percent, "border-radius" => 6px)
-                    push!(new_label, cover)
+                    cover = img("activecover", src = cover_path, width = 70percent)
+                    style!(cover, "border-radius" => 6px)
+                    cover_container = div("covercontainer", children = [cover], align = "center")
+                    style!(cover_container, "width" => 100percent)
+                    push!(new_label, cover_container)
                 end
                 if location.description.name != "null"
                     push!(new_label, location.description)
@@ -225,7 +225,10 @@ main = route("/") do c::Toolips.AbstractConnection
                 if cm["$safename-label"]["close"] == "0"
                     return
                 end
-                remove!(cm, "$safename-label")
+                style!(cm, "$safename-label", "width" => 0percent)
+                next!(cm, "$safename-label") do cl::ClientModifier
+                    remove!(cl, "$safename-label")
+                end
             end
         end
         on(c, circ, "click") do cm::ComponentModifier
@@ -234,12 +237,9 @@ main = route("/") do c::Toolips.AbstractConnection
             end
             style!(cm, "activecover", "width" => "auto")
             cm["$safename-label"] = "close" => "0"
-            cm["$safename-label"] = "align" => "center"
-            style!(cm, "$safename-label", "left" => 0percent, "width" => 100percent, "top" => 0percent, 
+            cm["$safename-label"] = "align" => "left"
+            style!(cm, "$safename-label", "left" => 0percent, "width" => 100percent, 
                 "opacity" => 100percent)
-            next!(c, cm, circ) do cm2::ComponentModifier
-                style!(cm2, "$safename-label", "height" => 100percent)
-            end
         end
         style!(circ, "fill" => "#264594", "cursor" => "pointer")
         main_svg[:text] = main_svg[:text] * string(circ)
